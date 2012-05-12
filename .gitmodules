@@ -1,0 +1,3 @@
+[submodule "examples/test_wavs"]
+	path = examples/test_wavs
+	url = git://github.com/colinsullivan/test_wavs.git
