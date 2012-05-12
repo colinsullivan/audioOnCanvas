@@ -12,5 +12,5 @@ http-server .
 
 Visit [http://localhost:8080/examples/simple](http://localhost:8080/examples/simple):
 
-![simple-screenshot]()
+![simple-screenshot](https://github.com/colinsullivan/audioOnCanvas/raw/master/examples/simple-screenshot.png)
 
