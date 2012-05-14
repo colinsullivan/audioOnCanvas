@@ -101,6 +101,8 @@ class audioOnCanvas.SpectrumRenderer extends audioOnCanvas.Renderer
   render: () ->
     super()
 
+    console.log "spectrogram"
+
     canvasHeight = @canvasCtx.canvas.clientHeight
     canvasWidth = @canvasCtx.canvas.clientWidth
 
@@ -112,21 +114,31 @@ class audioOnCanvas.SpectrumRenderer extends audioOnCanvas.Renderer
     # to play our source that we're analyzing
     source = temporaryAudioCtx.createBufferSource()
     source.buffer = @buffer
+    source.loop = false
+    #source.buffer = temporaryAudioCtx.createBuffer(1, 44100, 44100)
+    #for i in [0..source.buffer.length]
+    #  source.buffer[i] = Math.random()
+    
+    #console.log source.buffer
+      #source.loop = true
+    #source.connect(temporaryAudioCtx.destination)
+
+    FFTSIZE = 1024
 
     # spectrum analyzer
     spectrumNode = temporaryAudioCtx.createAnalyser()
-    spectrumNode.fftSize = 512
+    spectrumNode.fftSize = FFTSIZE
     spectrumNode.smoothingTimeConstant = 0.5
     #    spectrumNode.minDecibels = -100
     #    spectrumNode.maxDecibels = 0
-    source.connect(spectrumNode)
+    #source.connect(spectrumNode)
 
     # Dummy process node so we can get grab frequency information at audio
     # rates.
     processNode = temporaryAudioCtx.createJavaScriptNode(
-      512,
+      FFTSIZE,
       @buffer.numberOfChannels,
-      1
+      @buffer.numberOfChannels
     )
 
     frequencyDatum = []
@@ -134,59 +146,65 @@ class audioOnCanvas.SpectrumRenderer extends audioOnCanvas.Renderer
     playTime = null
 
     finishRendering = () =>
+      console.log "finished"
       console.log frequencyDatum
       processNode.disconnect(temporaryAudioCtx.destination)
 
-      freqBinWidth = canvasWidth/frequencyDatum.length
+      #freqBinWidth = canvasWidth/frequencyDatum.length
 
-      spectrogram = context.createImageData(canvasWidth, canvasHeight)
+      #spectrogram = @canvasCtx.createImageData(canvasWidth, canvasHeight)
 
-      # for each time chunk (horizontal pixel)
-      for x in [0..canvasWidth]
-        timeChunk = frequencyDatum[Math.floor(x/canvasWidth)]
+      ## for each time chunk (horizontal pixel)
+      #for x in [0..canvasWidth]
+        #timeChunk = frequencyDatum[Math.floor(x/canvasWidth)]
 
-        # for each frequency bin in the applicable time chunk
-        for j in [0..timeChunk.length]
+        ## for each frequency bin in the applicable time chunk
+        #for j in [0..timeChunk.length]
 
-          # Draw pixel
-          spectrogram.data[canvasWidth*j*4 + x*4] = 255
-          spectrogram.data[canvasWidth*j*4 + x*4 + 1] = 255
-          spectrogram.data[canvasWidth*j*4 + x*4 + 2] = 255
-          spectrogram.data[canvasWidth*j*4 + x*4 + 3] = 255*timeChunk[j]
+          ## Draw pixel
+          #spectrogram.data[canvasWidth*j*4 + x*4] = 255
+          #spectrogram.data[canvasWidth*j*4 + x*4 + 1] = 255
+          #spectrogram.data[canvasWidth*j*4 + x*4 + 2] = 255
+          #spectrogram.data[canvasWidth*j*4 + x*4 + 3] = 255*timeChunk[j]
 
-          #      for i in [0..frequencyData.length]
-          #
-          #        newSamplePosition =
-          #          x:(i/frequencyData.length)*canvasWidth
-          #          y:canvasHeight + (frequencyData[i]/frequencyData[0])*canvasHeight
-          #        
-          #        @canvasCtx.beginPath()
-          #        @canvasCtx.moveTo(prevSamplePosition.x, prevSamplePosition.y)
-          #        @canvasCtx.lineTo(newSamplePosition.x, newSamplePosition.y)
-          #        @canvasCtx.stroke()
-          #        
-          #        prevSamplePosition.x = newSamplePosition.x
-          #        prevSamplePosition.y = newSamplePosition.y
+          ##      for i in [0..frequencyData.length]
+          ##
+          ##        newSamplePosition =
+          ##          x:(i/frequencyData.length)*canvasWidth
+          ##          y:canvasHeight + (frequencyData[i]/frequencyData[0])*canvasHeight
+          ##        
+          ##        @canvasCtx.beginPath()
+          ##        @canvasCtx.moveTo(prevSamplePosition.x, prevSamplePosition.y)
+          ##        @canvasCtx.lineTo(newSamplePosition.x, newSamplePosition.y)
+          ##        @canvasCtx.stroke()
+          ##        
+          ##        prevSamplePosition.x = newSamplePosition.x
+          ##        prevSamplePosition.y = newSamplePosition.y
 
     prevSamplePosition =
       x:0
       y:canvasHeight
 
     frequencyData = new Float32Array(512)
-    processSpectrumData = (e) =>
-      
-      spectrumNode.getFloatFrequencyData(frequencyData)
 
-      frequencyDatum.push
-        time: temporaryAudioCtx.currentTime
-        frequencyData: frequencyData
+    processSpectrumData = (e) ->
+      console.log source.playbackState
+      #spectrumNode.getFloatFrequencyData(frequencyData)
+
+      #frequencyDatum.push
+        #time: temporaryAudioCtx.currentTime
+        #frequencyData: frequencyData
+
+      for i in [0...e.inputBuffer.length]
+        e.outputBuffer[i] = e.inputBuffer[i]
 
       
-      if temporaryAudioCtx.currentTime+playTime > @buffer.length/@buffer.sampleRate
-        finishRendering()
+      if source.playbackState == source.FINISHED_STATE
+        console.log "Finished"
+        #finishRendering()
 
     processNode.onaudioprocess = processSpectrumData
-    spectrumNode.connect(processNode)
+    source.connect(processNode)
     
     console.log "Processing"
     processNode.connect(temporaryAudioCtx.destination)
