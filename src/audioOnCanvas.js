@@ -148,6 +148,8 @@
      **/
     temporaryAudioCtx = new webkitAudioContext();
 
+    window.poop = function() {}
+
     // to play our source we're currently analyzing
     source = temporaryAudioCtx.createBufferSource();
     source.buffer = this.buffer;
