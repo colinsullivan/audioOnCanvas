@@ -8,7 +8,7 @@ window.onload = function () {
 
   xhr.open(
     "GET",
-    "/examples/test_wavs/Air_EndingKeys.wav",
+    "../test_wavs/Air_EndingKeys.wav",
     true
   );
   xhr.responseType = "arraybuffer";
