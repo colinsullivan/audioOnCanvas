@@ -119,4 +119,97 @@
       drawSample(x);
     }
   };
+
+
+  /**
+   *  @class  Used for generating a spectrogram of an audio signal inside a 
+   *  canvas element.
+   *  @extends  audioOnCanvas.Renderer
+   **/
+  audioOnCanvas.SpectrumRenderer = function (options) {
+    audioOnCanvas.Renderer.call(this, options);
+  };
+  audioOnCanvas.SpectrumRenderer.prototype = Object.create(audioOnCanvas.Renderer.prototype);
+
+  /**
+   *  Render the spectrogram using the provided audio data.
+   **/
+  audioOnCanvas.SpectrumRenderer.prototype.render = function () {
+    var canvasHeight, canvasWidth, temporaryAudioCtx, source, fftsize,
+      spectrumNode, frequencyDatum, playTime, finishedAnalyzing,
+      processSpectrumData, processNode;
+
+    canvasHeight = this.canvasCtx.canvas.clientHeight;
+    canvasWidth = this.canvasCtx.canvas.clientWidth;
+
+    /**
+     *  Here we'll create a temporary audio context just to render out the 
+     *  spectrum.  TODO: non-realtime when available.
+     **/
+    temporaryAudioCtx = new webkitAudioContext();
+
+    // to play our source we're currently analyzing
+    source = temporaryAudioCtx.createBufferSource();
+    source.buffer = this.buffer;
+
+    fftsize = 1024;
+
+    // spectrum analyzer
+    //spectrumNode = temporaryAudioCtx.createAnalyser();
+    //spectrumNode.fftSize = fftsize;
+    //spectrumNode.smoothingTimeConstant = 0.5;
+    // will analyze our source
+    //source.connect(spectrumNode);
+
+    // dummy process node so we can grab frequency information at audio rates
+    processNode = temporaryAudioCtx.createJavaScriptNode(
+      fftsize,
+      1,
+      1
+    );
+
+    frequencyDatum = [];
+
+    playTime = null;
+
+    var i = 0;
+    
+    // called when entire audio buffer has been analyzed
+    finishedAnalyzing = function () {
+      console.log("finished processing");
+      console.log("frequencyDatum");
+      console.log(frequencyDatum);
+      console.log("i");
+      console.log(i);
+    };
+
+    // called for each audio buffer
+    processSpectrumData = function (e) {
+      i++;
+
+      // for each channel
+      for (var c=0; c < e.inputBuffer.numberOfChannels; c++) {
+        var inputChannelData = e.inputBuffer.getChannelData(c);
+        var outputChannelData = e.outputBuffer.getChannelData(c);
+        // for each sample
+        for (var s=0; s < inputChannelData.length; s++) {
+          outputChannelData[s] = inputChannelData[s];
+        }
+      }
+
+      if (source.playbackState === source.FINISHED_STATE) {
+        console.log("finished");
+        finishedAnalyzing();
+      }
+    };
+
+    processNode.onaudioprocess = processSpectrumData;
+    // will come after spectrumNode in signal chain.
+    //spectrumNode.connect(processNode);
+    source.connect(processNode);
+    //source.connect(temporaryAudioCtx.destination);
+    processNode.connect(temporaryAudioCtx.destination);
+    console.log("note on");
+    source.noteOn(0);
+  }
 }).call(this);
