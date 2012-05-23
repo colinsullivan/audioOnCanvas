@@ -10,7 +10,7 @@
   <body>
     <canvas id="waveform" width="720px" height="480px"></canvas>
 
-    <script src="../../lib/audioOnCanvas.js"></script>
+    <script src="../../src/audioOnCanvas.js"></script>
     <script> 
       window.onload = function() {
 
@@ -19,7 +19,7 @@
 
         xhr.open(
           "GET",
-          "../test_wavs/Air_EndingKeys.wav",
+          "/examples/test_wavs/Air_EndingKeys.wav",
           true
         );
         xhr.responseType = "arraybuffer";
