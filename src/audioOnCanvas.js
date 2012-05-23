@@ -7,6 +7,10 @@
  *              Licensed under the MIT license.
  **/
 
+/**
+ *  @namespace  audioOnCanvas   Some classes for rendering visual 
+ *  representations of audio data on a canvas element.
+ **/
 (function () {
   "use strict";
   
@@ -59,6 +63,9 @@
   };
   audioOnCanvas.WaveformRenderer.prototype = Object.create(audioOnCanvas.Renderer.prototype);
 
+  /**
+   *  Render an audio amplitude waveform.
+   **/
   audioOnCanvas.WaveformRenderer.prototype.render = function () {
     audioOnCanvas.Renderer.prototype.render.call(this);
 
@@ -107,11 +114,9 @@
     };
 
     // for each fraction of a pixel, draw audio sample as necessary
+    // TODO: better waveform rendering algorithm.
     for (x = 0; x < canvasWidth; x += 0.01) {
       drawSample(x);
     }
-
-
   };
-
 }).call(this);
