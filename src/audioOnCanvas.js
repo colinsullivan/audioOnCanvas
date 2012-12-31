@@ -17,35 +17,128 @@
 
   var audioOnCanvas = (typeof exports !== "undefined" && exports !== null) && this || (this.audioOnCanvas = {});
 
-  
   /**
-   *  @constructor
+   *  @class  audioOnCanvas.AudioPlayer   Audio player functionality using
+   *  Web Audio API.
    *
-   *  @param  CanvasElement options.canvasElement   The canvas element to draw
-   *  the image on.
-   *  @param  AudioBuffer   options.buffer          The buffer instance to
+   *  @param  AudioBuffer   options.buffer    The buffer instance to play and
    *  render.
-   *  @param  Boolean       options.renderAsync     Wether or not to render
-   *  asynchronously (waveform loads in pieces).  Defaults to true.
+   *  @param  webkitAudioContext  options.ctx  The audio context.
+   *  @param  Function            options.playhead_update_callback  Callback used when playhead position is updated.
    **/
-  audioOnCanvas.Renderer = function (options) {
+  audioOnCanvas.AudioPlayer = function (options) {
     options = options || {};
-
-    this.canvasElement = options.canvasElement;
+    
     this.buffer = options.buffer;
-    this.renderAsync = options.renderAsync || true;
-
-    if (typeof this.canvasElement === "undefined" || this.canvasElement === null) {
-      throw new Error("this.canvasElement is undefined");
-    }
-
+    this.ctx = options.ctx;
+    this.playhead_update_callback = options.playhead_update_callback || function () {};
+    
     if (typeof this.buffer === "undefined" || this.buffer === null) {
       throw new Error("this.buffer is undefined");
     }
 
-    this.canvasCtx = this.canvasElement.getContext("2d");
+    if (typeof this.ctx === "undefined" || this.ctx === null) {
+      throw new Error("this.ctx is undefined");
+    }
+
+    this.lastStartTime = null;
+    this.playheadPosition = 0;
+
+    this.playbackNode = null;
+
+    this.isPlaying = false;
+
+    this.playhead_update_interval = null;
+
+    this.prepare_to_play();
+
+  };
+
+  audioOnCanvas.AudioPlayer.prototype.prepare_to_play = function () {
+    this.playbackNode = this.ctx.createBufferSource();
+    this.playbackNode.buffer = this.buffer;
+    this.playbackNode.connect(this.ctx.destination);
+  };
+
+  /**
+   *  Playback of audio.
+   **/
+  audioOnCanvas.AudioPlayer.prototype.play = function () {
+    var me = this;
+
+    this.lastStartTime = this.ctx.currentTime - this.playheadPosition;
+    this.playbackNode.start(this.ctx.currentTime, this.playheadPosition);
+
+    this.playhead_update_interval = setInterval(function () {
+      me.update_playhead();
+    }, 50);
+
+    this.isPlaying = true;
+    
+  };
+
+  audioOnCanvas.AudioPlayer.prototype.update_playhead = function () {
+    this.playheadPosition = this.ctx.currentTime - this.lastStartTime;
+    this.playhead_update_callback({
+      pos: this.playheadPosition,
+      prog: this.playheadPosition / this.buffer.duration
+    });
+  };
+
+  audioOnCanvas.AudioPlayer.prototype.pause = function () {
+    this.playbackNode.stop(this.ctx.currentTime);
+    clearInterval(this.playhead_update_interval);
+    this.update_playhead();
+
+    this.isPlaying = false;
+
+    this.prepare_to_play();
+  };
+
+  audioOnCanvas.AudioPlayer.prototype.playPause = function () {
+    if (this.isPlaying) {
+      this.pause();
+    } else {
+      this.play();
+    }
+  };
+  
+  /**
+   *  @constructor
+   *
+   *  @param  HTMLElement   options.container       The container to populate
+   *  with canvas elements.
+   *  @param  Number        options.width           The width of the image.
+   *  Defaults to the current width of the container.
+   *  @param  Number        options.height          The height of the image.
+   *  Defaults to the current height of the container.
+   *  @param  Boolean       options.renderAsync     Wether or not to render
+   *  asynchronously (waveform loads in pieces).  Defaults to true.
+   **/
+  audioOnCanvas.Renderer = function (options) {
+    audioOnCanvas.AudioPlayer.apply(this, arguments);
+
+    options = options || {};
+
+    this.container = options.container;
+    this.renderAsync = options.renderAsync || true;
+
+    if (typeof this.container === "undefined" || this.container === null) {
+      throw new Error("this.container is undefined");
+    }
+
+    this.width = options.width || this.container.clientWidth;
+    this.height = options.height || this.container.clientHeight;
+
+    this.waveformCanvasElement = document.createElement("canvas");
+    this.waveformCanvasElement.width = this.width;
+    this.waveformCanvasElement.height = this.height;
+    this.container.appendChild(this.waveformCanvasElement);
+
+    this.canvasCtx = this.waveformCanvasElement.getContext("2d");
     this.render();
   };
+  audioOnCanvas.Renderer.prototype = Object.create(audioOnCanvas.AudioPlayer.prototype);
 
   /**
    *  Should be overridden in subclasses to render audio plots.
@@ -53,6 +146,7 @@
   audioOnCanvas.Renderer.prototype.render = function () {
     return this;
   };
+
 
 
   /**

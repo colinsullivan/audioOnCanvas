@@ -6,38 +6,11 @@
 
   <title>Simple Waveform Test</title>
 
-
   <body>
-    <canvas id="waveform" width="720px" height="480px"></canvas>
+    <div id="waveform_container" style="width: 720px; height: 480px;"></div>
 
     <script src="../../src/audioOnCanvas.js"></script>
-    <script> 
-      window.onload = function() {
-
-        var audioCtx = new webkitAudioContext();
-        var xhr = new XMLHttpRequest();
-
-        xhr.open(
-          "GET",
-          "/examples/test_wavs/Air_EndingKeys.wav",
-          true
-        );
-        xhr.responseType = "arraybuffer";
-        xhr.onload = function(e) {
-          // buffer for incoming audio
-          buf = audioCtx.createBuffer(xhr.response, false);
-
-          canvasElement = document.getElementById("waveform");
-
-          waveformRenderer = new audioOnCanvas.WaveformRenderer({
-            canvasElement: canvasElement,
-            buffer: buf
-          });
-        }
-        xhr.send();
-
-      }
-    </script>
+    <script src="./init.js"></script>
   </body>
 </head>
 </html>
