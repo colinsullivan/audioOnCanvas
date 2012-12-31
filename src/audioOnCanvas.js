@@ -70,7 +70,7 @@
     audioOnCanvas.Renderer.prototype.render.call(this);
 
     var canvasHeight, canvasWidth, midHeight, prevSamplePosition, samples,
-      drawSample, x, me;
+      drawSample, x, me, rms, max, min, samplesPerPixel, prog, max_energy, min_energy;
 
     me = this;
 
@@ -83,40 +83,86 @@
     };
     // for now, just do mono
     samples = this.buffer.getChannelData(0);
+    
+    samplesPerPixel = samples.length / canvasWidth;
 
-    /**
-     *  Draw a line from the previous audio sample represented in the image
-     *  to the next one.
-     *
-     *  @param  number  x   x-coordinate of the next audio sample to represent
-     **/
-    drawSample = function (x) {
-      var sampleValue, newSamplePosition;
+    // if one px per multiple samples
+    if (samplesPerPixel >= 1.0) {
+      // for each pixel, draw a vertical line representing an RMS of the signal
+      // at that pixel.
       
-      // value of audio at this point
-      sampleValue = samples[Math.floor(
-        (x / canvasWidth) * samples.length
-      )];
+      /**
+       *  Calculate the RMS of the signal at the time pointed at by 
+       *  `startSample` and `endSample`.
+       **/
+      rms = function (startSample) {
+        var i, energy = 0, power, result, endSample = startSample + samplesPerPixel;
 
-      // new position
-      newSamplePosition = {
-        x: x,
-        y: midHeight - midHeight * sampleValue
+        for (i = startSample; i < endSample; i++) {
+          energy += (Math.abs(samples[i]) * Math.abs(samples[i]));
+        }
+
+        power = energy / (endSample - startSample);
+
+        result = Math.sqrt(power);
+        
+        return result;
       };
 
-      me.canvasCtx.beginPath();
-      me.canvasCtx.moveTo(prevSamplePosition.x, prevSamplePosition.y);
-      me.canvasCtx.lineTo(newSamplePosition.x, newSamplePosition.y);
-      me.canvasCtx.stroke();
+      /**
+       *  Calculate the maximum amplitude of the signal at the time pointed at
+       *  by `startSample` and `endSample`.
+       **/
+      max_energy = function (startSample) {
+        var i, energy, maxEnergy = -1.0, endSample = startSample + samplesPerPixel;
 
-      prevSamplePosition.x = newSamplePosition.x;
-      prevSamplePosition.y = newSamplePosition.y;
-    };
+        for (i = startSample; i < endSample; i++) {
+          if (samples[i] > maxEnergy) {
+            maxEnergy = samples[i];
+          }
+        }
 
-    // for each fraction of a pixel, draw audio sample as necessary
-    // TODO: better waveform rendering algorithm.
-    for (x = 0; x < canvasWidth; x += 0.01) {
-      drawSample(x);
+        return maxEnergy;
+      };
+
+      min_energy = function (startSample) {
+        var i, energy, minEnergy = 1.0, endSample = startSample + samplesPerPixel;
+
+        for (i = startSample; i < endSample; i++) {
+          if (samples[i] < minEnergy) {
+            minEnergy = samples[i];
+          }
+        }
+
+        return minEnergy;
+      };
+
+
+      for (x = 0; x < canvasWidth; x++) {
+        prog = x / canvasWidth;
+
+        // calculate magnitude of line at given point
+        /*mag = rms(
+          Math.floor(prog * samples.length)
+        );
+*/
+        max = max_energy(Math.floor(prog * samples.length));
+        min = min_energy(Math.floor(prog * samples.length));
+
+        //// draw vertical line at given magnitude
+        //this.canvasCtx.moveTo(x + 0.5, midHeight + mag * canvasHeight);
+        //this.canvasCtx.lineTo(x + 0.5, midHeight - mag * canvasHeight);
+        
+        this.canvasCtx.beginPath();
+        this.canvasCtx.moveTo(x + 0.5, midHeight);
+        this.canvasCtx.lineTo(x + 0.5, midHeight - max * midHeight);
+        this.canvasCtx.stroke();
+        
+        this.canvasCtx.beginPath();
+        this.canvasCtx.moveTo(x + 0.5, midHeight);
+        this.canvasCtx.lineTo(x + 0.5, midHeight - min * midHeight);
+        this.canvasCtx.stroke();
+      }
     }
   };
 }).call(this);
