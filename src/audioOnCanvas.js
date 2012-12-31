@@ -43,6 +43,7 @@
 
     this.lastStartTime = null;
     this.playheadPosition = 0;
+    this.playheadProgress = 0.0;
 
     this.playbackNode = null;
 
@@ -77,18 +78,42 @@
     
   };
 
+  audioOnCanvas.AudioPlayer.prototype.reset_playhead = function () {
+    this.playheadPosition = 0;
+    this.playheadProgress = 0.0;
+  };
+
   audioOnCanvas.AudioPlayer.prototype.update_playhead = function () {
     this.playheadPosition = this.ctx.currentTime - this.lastStartTime;
-    this.playhead_update_callback({
-      pos: this.playheadPosition,
-      prog: this.playheadPosition / this.buffer.duration
-    });
+    this.playheadProgress = this.playheadPosition / this.buffer.duration;
+    
+    // if audio is finished playing
+    if (this.playheadProgress >= 1.0) {
+
+      // send out final update
+      this.playheadProgress = 1.0;
+      this.playheadPosition = this.buffer.duration;
+      this.playhead_update_callback({
+        pos: this.playheadPosition,
+        prog: this.playheadProgress 
+      });
+
+      this.reset_playhead();
+     
+      this.pause();
+      
+    } else {
+      this.playhead_update_callback({
+        pos: this.playheadPosition,
+        prog: this.playheadProgress 
+      });
+    }
+
   };
 
   audioOnCanvas.AudioPlayer.prototype.pause = function () {
     this.playbackNode.stop(this.ctx.currentTime);
     clearInterval(this.playhead_update_interval);
-    this.update_playhead();
 
     this.isPlaying = false;
 
