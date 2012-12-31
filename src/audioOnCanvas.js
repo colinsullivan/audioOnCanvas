@@ -25,12 +25,15 @@
    *  the image on.
    *  @param  AudioBuffer   options.buffer          The buffer instance to
    *  render.
+   *  @param  Boolean       options.renderAsync     Wether or not to render
+   *  asynchronously (waveform loads in pieces).  Defaults to true.
    **/
   audioOnCanvas.Renderer = function (options) {
     options = options || {};
 
     this.canvasElement = options.canvasElement;
     this.buffer = options.buffer;
+    this.renderAsync = options.renderAsync || true;
 
     if (typeof this.canvasElement === "undefined" || this.canvasElement === null) {
       throw new Error("this.canvasElement is undefined");
@@ -60,8 +63,64 @@
    
     audioOnCanvas.Renderer.call(this, options);
 
+
   };
   audioOnCanvas.WaveformRenderer.prototype = Object.create(audioOnCanvas.Renderer.prototype);
+
+  audioOnCanvas.WaveformRenderer.prototype.render_block = function (x, samples, samplesPerPixel) {
+    var prog, max, min, midHeight = this.midHeight, max_energy, min_energy;
+
+    prog = x / this.canvasWidth;
+
+    // calculate magnitude of line at given point
+    /*mag = rms(
+      Math.floor(prog * samples.length)
+    );
+*/
+    /**
+     *  Calculate the maximum amplitude of the signal at the time pointed at
+     *  by `startSample` and `endSample`.
+     **/
+    max_energy = function (startSample) {
+      var i, energy, maxEnergy = -1.0, endSample = startSample + samplesPerPixel;
+
+      for (i = startSample; i < endSample; i++) {
+        if (samples[i] > maxEnergy) {
+          maxEnergy = samples[i];
+        }
+      }
+
+      return maxEnergy;
+    };
+
+    min_energy = function (startSample) {
+      var i, energy, minEnergy = 1.0, endSample = startSample + samplesPerPixel;
+
+      for (i = startSample; i < endSample; i++) {
+        if (samples[i] < minEnergy) {
+          minEnergy = samples[i];
+        }
+      }
+
+      return minEnergy;
+    };
+    max = max_energy(Math.floor(prog * samples.length));
+    min = min_energy(Math.floor(prog * samples.length));
+
+    //// draw vertical line at given magnitude
+    //this.canvasCtx.moveTo(x + 0.5, midHeight + mag * canvasHeight);
+    //this.canvasCtx.lineTo(x + 0.5, midHeight - mag * canvasHeight);
+    
+    this.canvasCtx.beginPath();
+    this.canvasCtx.moveTo(x + 0.5, midHeight);
+    this.canvasCtx.lineTo(x + 0.5, midHeight - max * midHeight);
+    this.canvasCtx.stroke();
+    
+    this.canvasCtx.beginPath();
+    this.canvasCtx.moveTo(x + 0.5, midHeight);
+    this.canvasCtx.lineTo(x + 0.5, midHeight - min * midHeight);
+    this.canvasCtx.stroke();
+  };
 
   /**
    *  Render an audio amplitude waveform.
@@ -69,99 +128,36 @@
   audioOnCanvas.WaveformRenderer.prototype.render = function () {
     audioOnCanvas.Renderer.prototype.render.call(this);
 
-    var canvasHeight, canvasWidth, midHeight, prevSamplePosition, samples,
-      drawSample, x, me, rms, max, min, samplesPerPixel, prog, max_energy, min_energy;
+    var samples,
+      render_block_async,
+      x,
+      samplesPerPixel;
+    
+    this.canvasHeight = this.canvasCtx.canvas.clientHeight;
+    this.canvasWidth = this.canvasCtx.canvas.clientWidth;
+    this.midHeight = this.canvasHeight / 2.0;
 
-    me = this;
-
-    canvasHeight = this.canvasCtx.canvas.clientHeight;
-    canvasWidth = this.canvasCtx.canvas.clientWidth;
-    midHeight = canvasHeight / 2.0;
-    prevSamplePosition = {
-      x: 0,
-      y: midHeight
-    };
     // for now, just do mono
     samples = this.buffer.getChannelData(0);
     
-    samplesPerPixel = samples.length / canvasWidth;
+    samplesPerPixel = samples.length / this.canvasWidth;
 
     // if one px per multiple samples
     if (samplesPerPixel >= 1.0) {
-      // for each pixel, draw a vertical line representing an RMS of the signal
-      // at that pixel.
-      
-      /**
-       *  Calculate the RMS of the signal at the time pointed at by 
-       *  `startSample` and `endSample`.
-       **/
-      rms = function (startSample) {
-        var i, energy = 0, power, result, endSample = startSample + samplesPerPixel;
+      render_block_async = function (me) {
+        return function (x) {
+          setTimeout(function () {
+            me.render_block(x, samples, samplesPerPixel);
+          }, 1);
+        };
+      }(this);
 
-        for (i = startSample; i < endSample; i++) {
-          energy += (Math.abs(samples[i]) * Math.abs(samples[i]));
+      for (x = 0; x < this.canvasWidth; x++) {
+        if (this.renderAsync) {
+          render_block_async(x);
+        } else {
+          this.render_block(x, samples, samplesPerPixel);
         }
-
-        power = energy / (endSample - startSample);
-
-        result = Math.sqrt(power);
-        
-        return result;
-      };
-
-      /**
-       *  Calculate the maximum amplitude of the signal at the time pointed at
-       *  by `startSample` and `endSample`.
-       **/
-      max_energy = function (startSample) {
-        var i, energy, maxEnergy = -1.0, endSample = startSample + samplesPerPixel;
-
-        for (i = startSample; i < endSample; i++) {
-          if (samples[i] > maxEnergy) {
-            maxEnergy = samples[i];
-          }
-        }
-
-        return maxEnergy;
-      };
-
-      min_energy = function (startSample) {
-        var i, energy, minEnergy = 1.0, endSample = startSample + samplesPerPixel;
-
-        for (i = startSample; i < endSample; i++) {
-          if (samples[i] < minEnergy) {
-            minEnergy = samples[i];
-          }
-        }
-
-        return minEnergy;
-      };
-
-
-      for (x = 0; x < canvasWidth; x++) {
-        prog = x / canvasWidth;
-
-        // calculate magnitude of line at given point
-        /*mag = rms(
-          Math.floor(prog * samples.length)
-        );
-*/
-        max = max_energy(Math.floor(prog * samples.length));
-        min = min_energy(Math.floor(prog * samples.length));
-
-        //// draw vertical line at given magnitude
-        //this.canvasCtx.moveTo(x + 0.5, midHeight + mag * canvasHeight);
-        //this.canvasCtx.lineTo(x + 0.5, midHeight - mag * canvasHeight);
-        
-        this.canvasCtx.beginPath();
-        this.canvasCtx.moveTo(x + 0.5, midHeight);
-        this.canvasCtx.lineTo(x + 0.5, midHeight - max * midHeight);
-        this.canvasCtx.stroke();
-        
-        this.canvasCtx.beginPath();
-        this.canvasCtx.moveTo(x + 0.5, midHeight);
-        this.canvasCtx.lineTo(x + 0.5, midHeight - min * midHeight);
-        this.canvasCtx.stroke();
       }
     }
   };
