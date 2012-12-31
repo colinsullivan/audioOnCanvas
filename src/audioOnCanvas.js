@@ -133,9 +133,18 @@
     this.waveformCanvasElement = document.createElement("canvas");
     this.waveformCanvasElement.width = this.width;
     this.waveformCanvasElement.height = this.height;
+    this.waveformCanvasElement.style.position = "absolute";
     this.container.appendChild(this.waveformCanvasElement);
 
-    this.canvasCtx = this.waveformCanvasElement.getContext("2d");
+    this.playheadCanvasElement = document.createElement("canvas");
+    this.playheadCanvasElement.width = this.width;
+    this.playheadCanvasElement.height = this.height;
+    this.playheadCanvasElement.style.position = "absolute";
+    this.container.appendChild(this.playheadCanvasElement);
+
+    this.waveformCanvasCtx = this.waveformCanvasElement.getContext("2d");
+    this.playheadCanvasCtx = this.playheadCanvasElement.getContext("2d");
+
     this.render();
   };
   audioOnCanvas.Renderer.prototype = Object.create(audioOnCanvas.AudioPlayer.prototype);
@@ -146,8 +155,6 @@
   audioOnCanvas.Renderer.prototype.render = function () {
     return this;
   };
-
-
 
   /**
    *  @class    Used for generating a waveform inside a canvas element.
@@ -202,18 +209,18 @@
     min = min_energy(Math.floor(prog * samples.length));
 
     //// draw vertical line at given magnitude
-    //this.canvasCtx.moveTo(x + 0.5, midHeight + mag * canvasHeight);
-    //this.canvasCtx.lineTo(x + 0.5, midHeight - mag * canvasHeight);
+    //this.waveformCanvasCtx.moveTo(x + 0.5, midHeight + mag * canvasHeight);
+    //this.waveformCanvasCtx.lineTo(x + 0.5, midHeight - mag * canvasHeight);
     
-    this.canvasCtx.beginPath();
-    this.canvasCtx.moveTo(x + 0.5, midHeight);
-    this.canvasCtx.lineTo(x + 0.5, midHeight - max * midHeight);
-    this.canvasCtx.stroke();
+    this.waveformCanvasCtx.beginPath();
+    this.waveformCanvasCtx.moveTo(x + 0.5, midHeight);
+    this.waveformCanvasCtx.lineTo(x + 0.5, midHeight - max * midHeight);
+    this.waveformCanvasCtx.stroke();
     
-    this.canvasCtx.beginPath();
-    this.canvasCtx.moveTo(x + 0.5, midHeight);
-    this.canvasCtx.lineTo(x + 0.5, midHeight - min * midHeight);
-    this.canvasCtx.stroke();
+    this.waveformCanvasCtx.beginPath();
+    this.waveformCanvasCtx.moveTo(x + 0.5, midHeight);
+    this.waveformCanvasCtx.lineTo(x + 0.5, midHeight - min * midHeight);
+    this.waveformCanvasCtx.stroke();
   };
 
   /**
@@ -227,8 +234,8 @@
       x,
       samplesPerPixel;
     
-    this.canvasHeight = this.canvasCtx.canvas.clientHeight;
-    this.canvasWidth = this.canvasCtx.canvas.clientWidth;
+    this.canvasHeight = this.waveformCanvasCtx.canvas.clientHeight;
+    this.canvasWidth = this.waveformCanvasCtx.canvas.clientWidth;
     this.midHeight = this.canvasHeight / 2.0;
 
     // for now, just do mono
@@ -254,5 +261,32 @@
         }
       }
     }
+
+    // move playhead to current position
+    this.render_playhead();
+  };
+
+  audioOnCanvas.WaveformRenderer.prototype.render_playhead = function () {
+    var prog, x, ctx = this.playheadCanvasCtx;
+    
+    // current position of playhead
+    prog = this.playheadPosition / this.buffer.duration;
+    x = prog * this.width;
+
+    ctx.clearRect(0, 0, this.width, this.height);
+
+    // draw
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, this.height);
+    ctx.lineWidth = 1.0;
+    ctx.strokeStyle = "#aa5500"
+    ctx.stroke();
+  };
+
+  audioOnCanvas.WaveformRenderer.prototype.update_playhead = function () {
+    audioOnCanvas.Renderer.prototype.update_playhead.apply(this, arguments);
+
+    this.render_playhead();
   };
 }).call(this);
