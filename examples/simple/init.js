@@ -11,7 +11,8 @@
 
     xhr.open(
       "GET",
-      "/examples/test_wavs/Air_EndingKeys.wav",
+      //"/examples/test_wavs/Air_EndingKeys.wav",
+      "/examples/test_wavs/MC100510_BR_dry.wav",
       true
     );
     xhr.responseType = "arraybuffer";

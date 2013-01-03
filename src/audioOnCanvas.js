@@ -154,6 +154,7 @@
 
     this.width = options.width || this.container.clientWidth;
     this.height = options.height || this.container.clientHeight;
+    this.midHeight = 0.5 * this.height;
 
     this.waveformCanvasElement = document.createElement("canvas");
     this.waveformCanvasElement.width = this.width;
@@ -178,6 +179,63 @@
    *  Should be overridden in subclasses to render audio plots.
    **/
   audioOnCanvas.Renderer.prototype.render = function () {
+    var ctx = this.waveformCanvasCtx,
+      midHeight = this.midHeight,
+      width = this.width,
+      height = this.height,
+      numVerticalGridLines = 10,
+      verticalGridLineSpacing = Math.floor(midHeight / numVerticalGridLines),
+      horizontalGridLineSpacing = 35,
+      numHorizontalGridLines = Math.ceil(width / horizontalGridLineSpacing),
+      i,
+      y,
+      x;
+
+    // render grid
+
+    // zero line style
+    ctx.lineWidth = 1.0;
+    ctx.strokeStyle = "rgba(100, 100, 100, 0.9)";
+
+    // zero line
+    ctx.beginPath();
+    ctx.moveTo(0, midHeight + 0.5);
+    ctx.lineTo(width, midHeight + 0.5);
+    ctx.stroke();
+
+    // grid style
+    ctx.lineWidth = 1.0;
+    ctx.strokeStyle = "rgba(100, 100, 100, 0.1)";
+
+    // draw grid vertical (positive)
+    for (i = 0; i < numVerticalGridLines; i++) {
+      ctx.beginPath();
+      y = i * verticalGridLineSpacing + 0.5;
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+
+    // draw grid vertical (negative)
+    // +1 skips the zero line, which was already drawn
+    for (i = 1; i < numVerticalGridLines + 1; i++) {
+      ctx.beginPath();
+      y = midHeight + i * verticalGridLineSpacing - 0.5;
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+
+    // draw horizontal grid
+    for (i = 0; i < numHorizontalGridLines; i++) {
+      ctx.beginPath();
+      x = i * horizontalGridLineSpacing + 0.5;
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+    
+
     return this;
   };
 
@@ -188,7 +246,6 @@
   audioOnCanvas.WaveformRenderer = function (options) {
    
     audioOnCanvas.Renderer.call(this, options);
-
 
   };
   audioOnCanvas.WaveformRenderer.prototype = Object.create(audioOnCanvas.Renderer.prototype);
@@ -263,6 +320,10 @@
     this.canvasWidth = this.waveformCanvasCtx.canvas.clientWidth;
     this.midHeight = this.canvasHeight / 2.0;
 
+    // waveform style
+    this.waveformCanvasCtx.strokeStyle = "#000000";
+    this.waveformCanvasCtx.lineWidth = 1.0;
+
     // for now, just do mono
     samples = this.buffer.getChannelData(0);
     
@@ -292,11 +353,10 @@
   };
 
   audioOnCanvas.WaveformRenderer.prototype.render_playhead = function () {
-    var prog, x, ctx = this.playheadCanvasCtx;
+    var x, ctx = this.playheadCanvasCtx;
     
     // current position of playhead
-    prog = this.playheadPosition / this.buffer.duration;
-    x = prog * this.width;
+    x = this.playheadProgress * this.width;
 
     ctx.clearRect(0, 0, this.width, this.height);
 
@@ -305,7 +365,7 @@
     ctx.moveTo(x, 0);
     ctx.lineTo(x, this.height);
     ctx.lineWidth = 1.0;
-    ctx.strokeStyle = "#aa5500"
+    ctx.strokeStyle = "#aa5500";
     ctx.stroke();
   };
 
