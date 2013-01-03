@@ -191,6 +191,9 @@
       y,
       x;
 
+    // clear canvas
+    ctx.clearRect(0, 0, this.width, this.height);
+
     // render grid
 
     // zero line style
